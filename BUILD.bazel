@@ -1,0 +1,111 @@
+load("@rules_cc//cc:defs.bzl",  "cc_library")
+load("@crate_index//:defs.bzl", "aliases", "all_crate_deps")
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+cc_library(
+    name = "blake3_cc",
+    srcs = [
+        "c/blake3.c",
+        "c/blake3_dispatch.c",
+        # "c/blake3_portable.c",
+    ] + select({
+        "@bazel_tools//src/conditions:linux_x86_64": [
+            "c/blake3_avx2_x86-64_unix.S",
+            "c/blake3_avx512_x86-64_unix.S",
+            "c/blake3_sse2_x86-64_unix.S",
+            "c/blake3_sse41_x86-64_unix.S",
+        ],
+        "@bazel_tools//src/conditions:linux_aarch64": [
+            "c/blake3_neon.c",
+        ],
+        "@bazel_tools//src/conditions:windows_x64": [
+            "c/blake3_avx2_x86-64_windows_msvc.asm",
+            "c/blake3_avx512_x86-64_windows_msvc.asm",
+            "c/blake3_sse2_x86-64_windows_msvc.asm",
+            "c/blake3_sse41_x86-64_windows_msvc.asm",
+        ],
+        "@bazel_tools//src/conditions:windows_arm64": [
+            "c/blake3_neon.c",
+        ],
+        "@bazel_tools//src/conditions:darwin_x86_64": [
+            "c/blake3_avx2_x86-64_unix.S",
+            "c/blake3_avx512_x86-64_unix.S",
+            "c/blake3_sse2_x86-64_unix.S",
+            "c/blake3_sse41_x86-64_unix.S",
+        ],
+        "@bazel_tools//src/conditions:darwin_arm64": [
+            "c/blake3_neon.c",
+        ],
+        "//conditions:default": [],
+    }),
+    hdrs = [
+        "c/blake3.h",
+        "c/blake3_impl.h",
+    ],
+    copts = select({
+        "@bazel_tools//src/conditions:linux_x86_64": [],
+        "@bazel_tools//src/conditions:linux_aarch64": [
+            "-DBLAKE3_USE_NEON=1",
+        ],
+        "@bazel_tools//src/conditions:windows_x64": [],
+        "@bazel_tools//src/conditions:windows_arm64": [
+            "-DBLAKE3_USE_NEON=1",
+        ],
+        "@bazel_tools//src/conditions:darwin_arm64": [
+            "-DBLAKE3_USE_NEON=1",
+        ],
+        "//conditions:default": [
+            "-DBLAKE3_NO_SSE2",
+            "-DBLAKE3_NO_SSE41",
+            "-DBLAKE3_NO_AVX2",
+            "-DBLAKE3_NO_AVX512",
+        ],
+    }),
+    # includes = ["."],
+    visibility = ["//visibility:public"],
+)
+
+rust_library(
+    name = "blake3",
+    srcs = glob(["src/**/*.rs"]),
+    aliases = aliases(),
+    crate_name = "blake3",
+    proc_macro_deps = all_crate_deps(proc_macro = True),
+    deps = [
+        "//:blake3_cc",
+        "//reference_impl",    
+    ] + all_crate_deps(normal = True),
+    crate_features = [
+        "mmap", 
+        "rayon",
+        "std",
+    ],
+    rustc_flags = select({
+        "@bazel_tools//src/conditions:linux_x86_64": [
+            "--cfg=blake3_sse2_ffi",
+            "--cfg=blake3_sse41_ffi",
+            "--cfg=blake3_avx2_ffi",  
+        ],
+        "@bazel_tools//src/conditions:linux_aarch64": [
+            "--cfg=blake3_neon",
+        ],
+        "@bazel_tools//src/conditions:windows_x64": [],
+        "@bazel_tools//src/conditions:windows_arm64": [
+        ],
+        "@bazel_tools//src/conditions:darwin_x86_64": [
+            "--cfg=blake3_sse2_ffi",
+            "--cfg=blake3_sse41_ffi",
+            "--cfg=blake3_avx2_ffi",  
+        ],
+        "@bazel_tools//src/conditions:darwin_arm64": [
+            "--cfg=blake3_neon",
+        ],
+        "//conditions:default": [
+            "-DBLAKE3_NO_SSE2",
+            "-DBLAKE3_NO_SSE41",
+            "-DBLAKE3_NO_AVX2",
+            "-DBLAKE3_NO_AVX512",
+        ],
+    }),
+    visibility = ["//visibility:public"],
+)

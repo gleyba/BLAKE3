@@ -1,2 +1,3 @@
-Cargo.lock
+b3sum/Cargo.lock
 target
+bazel-*

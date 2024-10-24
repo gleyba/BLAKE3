@@ -1,0 +1,12 @@
+load("@crate_index//:defs.bzl", "aliases", "all_crate_deps")
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+rust_library(
+    name = "reference_impl",
+    srcs = ["reference_impl.rs"],
+    aliases = aliases(),
+    crate_name = "reference_impl",
+    proc_macro_deps = all_crate_deps(proc_macro = True),
+    deps = all_crate_deps(normal = True),
+    visibility = ["//visibility:public"],
+)
