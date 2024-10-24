@@ -1,3 +1,10 @@
+[workspace]
+resolver = "2"
+members = [
+    "reference_impl",
+    "b3sum",
+]
+
 [package]
 name = "blake3"
 version = "1.5.4"
